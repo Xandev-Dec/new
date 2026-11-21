@@ -3,12 +3,29 @@ package id.jagaanak
 import android.content.Context
 import java.security.MessageDigest
 
+object PinHash {
+    fun of(pin: String): String =
+        MessageDigest.getInstance("SHA-256").digest(("jagaanak:$pin").toByteArray())
+            .joinToString("") { "%02x".format(it) }
+}
+
 class Prefs(ctx: Context) {
     private val p = ctx.applicationContext.getSharedPreferences("jagaanak", Context.MODE_PRIVATE)
 
-    val hasPin: Boolean get() = p.getString("pin", null) != null
-    fun setPin(pin: String) { p.edit().putString("pin", hash(pin)).apply() }
-    fun checkPin(pin: String) = p.getString("pin", null) == hash(pin)
+    var familyCode: String?
+        get() = p.getString("code", null)
+        set(v) { p.edit().putString("code", v).apply() }
+
+    var paired: Boolean
+        get() = p.getBoolean("paired", false)
+        set(v) { p.edit().putBoolean("paired", v).apply() }
+
+    var pinHash: String?
+        get() = p.getString("pinHash", null)
+        set(v) { p.edit().putString("pinHash", v).apply() }
+
+    fun setPin(pin: String) { pinHash = PinHash.of(pin) }
+    fun checkPin(pin: String) = pinHash != null && pinHash == PinHash.of(pin)
 
     var dailyLimitMin: Int
         get() = p.getInt("limit", 120)
@@ -25,8 +42,4 @@ class Prefs(ctx: Context) {
     var monitoring: Boolean
         get() = p.getBoolean("monitoring", false)
         set(v) { p.edit().putBoolean("monitoring", v).apply() }
-
-    private fun hash(s: String) =
-        MessageDigest.getInstance("SHA-256").digest(("jagaanak:$s").toByteArray())
-            .joinToString("") { "%02x".format(it) }
 }

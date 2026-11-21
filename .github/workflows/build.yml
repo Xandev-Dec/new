@@ -21,23 +21,39 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # Tidak perlu gradle wrapper: Gradle dipasang langsung oleh action ini.
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
 
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+      # google-services.json diambil dari GitHub Secret (jangan di-commit).
+      - name: Buat google-services.json
+        env:
+          GS_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GS_JSON" ]; then
+            echo "::error::Secret GOOGLE_SERVICES_JSON belum diisi (lihat README)."; exit 1
+          fi
+          echo "$GS_JSON" > app/google-services.json
 
-      - name: Upload APK
+      - name: Build APK Orang Tua & Anak
+        run: gradle assembleParentDebug assembleChildDebug --stacktrace
+
+      - name: Upload APK Orang Tua
         uses: actions/upload-artifact@v4
         with:
-          name: JagaAnak-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: JagaAnak-Orang-Tua-apk
+          path: app/build/outputs/apk/parent/debug/*.apk
 
-      # Jika kamu push tag, misal: git tag v1.0 && git push origin v1.0
+      - name: Upload APK Anak
+        uses: actions/upload-artifact@v4
+        with:
+          name: JagaAnak-Anak-apk
+          path: app/build/outputs/apk/child/debug/*.apk
+
       - name: Publish to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/*.apk
+          files: |
+            app/build/outputs/apk/parent/debug/*.apk
+            app/build/outputs/apk/child/debug/*.apk
